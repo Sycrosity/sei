@@ -1,6 +1,9 @@
 [package]
 name = "sei"
 version = "0.0.0"
+authors = ["<Sycrosity>"]
+description = "A simple parser for .SEI (stacking ePaper image) files."
+license = "MIT OR Apache-2.0"
 edition = "2024"
 
 [dependencies]
