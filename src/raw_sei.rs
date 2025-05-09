@@ -1,8 +1,9 @@
 use crate::{SeiHeader, error::SeiError, settings::SeiSettings};
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct RawSei<'a> {
     pub header: SeiHeader,
-    pub data: &'a [u8],
+    pub img_data: &'a [u8],
 }
 
 impl<'a> RawSei<'a> {
@@ -48,7 +49,10 @@ impl<'a> RawSei<'a> {
 
         let (_, data) = bytes.split_at(data_offset);
 
-        Ok(Self { header, data })
+        Ok(Self {
+            header,
+            img_data: data,
+        })
     }
 
     pub const fn width(&self) -> u32 {
@@ -59,8 +63,17 @@ impl<'a> RawSei<'a> {
         self.header.height as u32
     }
 
-    pub const fn width_bytes(&self) -> u32 {
-        self.width().div_ceil(8)
+    pub const fn pixels_per_byte(&self) -> u32 {
+        8 / self.header.settings.bit_depth.bits()
+    }
+
+    pub const fn bit_depth(&self) -> u32 {
+        self.header.bit_depth()
+    }
+
+    /// Get the number of pixels used including padding.
+    pub const fn data_width(&self) -> u32 {
+        self.header.data_width()
     }
 }
 
@@ -103,7 +116,36 @@ fn test_1bit_sei() {
             .build()
     );
 
-    assert_eq!(sei.data, &[0b10101010, 0b01010101]);
+    assert_eq!(sei.img_data, &[0b10101010, 0b01010101]);
+}
+
+#[test]
+fn data_width() {
+    use crate::settings::*;
+
+    let raw = RawSei {
+        header: SeiHeader::builder()
+            .settings(SeiSettings::builder().bit_depth(BitDepth::OneBit).build())
+            .width(11)
+            .height(2)
+            .build(),
+        img_data: &[0b10101010, 0b0101010],
+    };
+
+    assert_eq!(raw.data_width(), 16);
+
+    let raw = RawSei {
+        header: SeiHeader::builder()
+            .settings(SeiSettings::builder().bit_depth(BitDepth::TwoBits).build())
+            .width(11)
+            .height(2)
+            .build(),
+        img_data: &[
+            0b10101010, 0b01010101, 0b01010100, 0b01010101, 0b01010101, 0b01010100,
+        ],
+    };
+
+    assert_eq!(raw.data_width(), 12);
 }
 
 // #[test]

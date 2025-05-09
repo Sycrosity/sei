@@ -1,6 +1,6 @@
 [package]
 name = "sei"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Sycrosity <72102935+Sycrosity@users.noreply.github.com>"]
 description = "A simple parser for .SEI (stacking ePaper image) files."
 repository = "https://github.com/Sycrosity/sei"
@@ -10,4 +10,3 @@ edition = "2024"
 [dependencies]
 bon = { version = "3.6", default-features = false }
 embedded-graphics = "0.8"
-embedded-graphics-core = "0.4"

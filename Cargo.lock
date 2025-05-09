@@ -175,11 +175,10 @@ checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
 
 [[package]]
 name = "sei"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "bon",
  "embedded-graphics",
- "embedded-graphics-core",
 ]
 
 [[package]]

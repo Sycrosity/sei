@@ -10,7 +10,7 @@ A simple parser for .SEI (stacking ePaper image) files.
 
 | crate version | sei version | 
 | --- | --- |
-| 0.0.1 | 0 |
+| 0.0.* | 0 |
 
 ---
 
@@ -44,7 +44,7 @@ offset | length | field | description |
 
 bit(s) | name | description |
 | -------- | ------- | ------- |
-0-1 | bit depth | 00 = 1-bit, 01 = 2-bit | 10 = 3 bit | 11 = not used |
+0-1 | bit depth | 00 = 1-bit, 01 = 2-bit | 10 = 4 bit | 11 = not used |
 2 | white mode | 0 (all 0 bits is white, all 1 bits is black), 1 (all 1 bits is white, all 0 bits is black) |
 3 | padding | 0 - padding is enabled (all rows are padded up to the nearest byte), 1 - padding is disabled |
 4-5 | stacking mode | 00 = full colour (pixels are coloured, and overwrite pixels they are on top of), 01 (white is transparent), 10 (black is transparent), 11 = unused |

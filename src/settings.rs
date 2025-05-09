@@ -45,7 +45,7 @@ pub enum BitDepth {
     /// Unused in the current version of the SEI format
     TwoBits = 0b01,
     /// Unused in the current version of the SEI format
-    ThreeBits = 0b10,
+    FourBits = 0b10,
 }
 
 impl BitDepth {
@@ -54,7 +54,7 @@ impl BitDepth {
         match self {
             BitDepth::OneBit => 1,
             BitDepth::TwoBits => 2,
-            BitDepth::ThreeBits => 3,
+            BitDepth::FourBits => 4,
         }
     }
 
