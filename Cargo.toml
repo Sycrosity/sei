@@ -1,9 +1,13 @@
 [package]
 name = "sei"
-version = "0.0.0"
-authors = ["<Sycrosity>"]
+version = "0.0.1"
+authors = ["Sycrosity <72102935+Sycrosity@users.noreply.github.com>"]
 description = "A simple parser for .SEI (stacking ePaper image) files."
+repository = "https://github.com/Sycrosity/sei"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 
 [dependencies]
+bon = { version = "3.6.3", default-features = false }
+embedded-graphics = "0.8.1"
+embedded-graphics-core = "0.4.0"
