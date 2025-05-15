@@ -32,10 +32,11 @@ impl<'a> RawSei<'a> {
         if (settings.bit_depth.bits() * width as u32).div_ceil(8) * height as u32
             != (bytes.len() - data_offset) as u32
         {
-            return Err(SeiError::IncorrectLength(
-                bytes.len() as u32 - data_offset as u32,
-                (settings.bit_depth.bits() * width as u32).div_ceil(8) * height as u32,
-            ));
+            // return Err(SeiError::IncorrectLength(
+            //     bytes.len() as u32 - data_offset as u32,
+            //     (settings.bit_depth.bits() * width as u32).div_ceil(8) * height as u32,
+            // ));
+            return Err(SeiError::IncorrectLength);
         }
 
         let header = SeiHeader {
@@ -105,7 +106,7 @@ fn test_1bit_sei() {
             .settings(
                 SeiSettings::builder()
                     .bit_depth(BitDepth::OneBit)
-                    .white_mode(WhiteMode::Ones)
+                    .invert(true)
                     .padding(Padding::Padding)
                     .stacking_mode(StackingMode::BlackTransparent)
                     .build(),

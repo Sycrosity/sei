@@ -6,29 +6,37 @@
 
 pub mod error;
 pub mod header;
+pub mod iter;
 pub mod raw_sei;
 pub mod settings;
+// pub mod stack;
 
 use crate::error::SeiError;
 
-use core::{iter::Take, marker::PhantomData, slice::ChunksExact};
+use iter::Pixels;
 use raw_sei::RawSei;
 
+use core::marker::PhantomData;
+
 use embedded_graphics::{
-    draw_target::DrawTarget,
-    draw_target::DrawTargetExt,
-    iterator::raw::RawDataSlice,
-    pixelcolor::{BinaryColor, raw::LittleEndian},
-    prelude::ContiguousIteratorExt,
-    prelude::*,
-    primitives::Rectangle,
+    draw_target::DrawTarget, draw_target::DrawTargetExt, pixelcolor::BinaryColor,
+    prelude::ContiguousIteratorExt, prelude::*, primitives::Rectangle,
 };
 use header::SeiHeader;
 use settings::*;
 
+#[derive(Clone, Copy)]
 pub struct Sei<'a, C> {
     raw_sei: RawSei<'a>,
     color_type: PhantomData<C>,
+}
+
+impl<C> core::fmt::Debug for Sei<'_, C> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Sei")
+            .field("raw_sei", &self.raw_sei)
+            .finish()
+    }
 }
 
 impl<'a, C> Sei<'a, C>
@@ -53,6 +61,10 @@ where
         self.raw_sei
     }
 
+    fn data_width(&self) -> u32 {
+        self.raw_sei.data_width()
+    }
+
     pub const fn set_stacking_mode(&mut self, stacking_mode: StackingMode) {
         self.raw_sei.header.settings.stacking_mode = stacking_mode;
     }
@@ -61,70 +73,28 @@ where
         self.raw_sei.header.settings.stacking_mode
     }
 
-    pub const fn set_white_mode(&mut self, white_mode: WhiteMode) {
-        self.raw_sei.header.settings.white_mode = white_mode;
+    pub const fn set_invert(&mut self, invert: bool) {
+        self.raw_sei.header.settings.invert = invert;
     }
 
-    pub const fn white_mode(&self) -> WhiteMode {
-        self.raw_sei.header.settings.white_mode
+    pub const fn invert(&mut self) {
+        self.raw_sei.header.settings.invert = !self.raw_sei.header.settings.invert;
+    }
+
+    pub const fn inverted(&self) -> bool {
+        self.raw_sei.header.settings.invert
     }
 
     pub fn bit_depth(&self) -> BitDepth {
         self.raw_sei.header.settings.bit_depth
     }
-}
 
-/// When draw is called, the bytes from the image data are written to the target.
-/// If StackingMode::Opaque is used, the bytes are written as they are, contiguously.
-/// If StackingMode::WhiteTransparent is used, the bytes are written as they are, but the white pixels are skipped.
-/// If StackingMode::BlackTransparent is used, the bytes are written as they are, but the black pixels are skipped.
-struct Pixels<'a, C>
-where
-    C: PixelColor + From<<C as PixelColor>::Raw>,
-    RawDataSlice<'a, C::Raw, LittleEndian>: IntoIterator<Item = C::Raw>,
-{
-    rows: ChunksExact<'a, u8>,
-    current_row: Take<<RawDataSlice<'a, C::Raw, LittleEndian> as IntoIterator>::IntoIter>,
-    header: SeiHeader,
-}
-
-impl<'a, C> Pixels<'a, C>
-where
-    C: PixelColor + From<<C as PixelColor>::Raw>,
-    RawDataSlice<'a, C::Raw, LittleEndian>: IntoIterator<Item = C::Raw>,
-{
-    pub fn new(sei: RawSei<'a>) -> Self {
-        Self {
-            rows: sei.img_data.chunks_exact((sei.data_width() as usize) / 8),
-            current_row: RawDataSlice::new(&[]).into_iter().take(0),
-            header: sei.header,
-        }
+    pub fn width(&self) -> u32 {
+        self.raw_sei.width()
     }
-}
 
-impl<'a, C> Iterator for Pixels<'a, C>
-where
-    C: PixelColor + From<<C as PixelColor>::Raw>,
-    RawDataSlice<'a, C::Raw, LittleEndian>: IntoIterator<Item = C::Raw>,
-{
-    type Item = C;
-
-    fn next(&mut self) -> Option<Self::Item> {
-
-        self.current_row.next().map(C::from).or_else(|| {
-
-            //TODO - deal with this later
-            let width = if self.header.settings.padding == Padding::NoPadding {
-                self.header.width as usize
-            } else {
-                // Calculate the number of bits to skip at the end of each row
-                self.header.data_width() as usize
-            };
-
-            self.current_row = RawDataSlice::new(self.rows.next()?).into_iter().take(width);
-
-            self.current_row.next().map(C::from)
-        })
+    pub fn height(&self) -> u32 {
+        self.raw_sei.height()
     }
 }
 
@@ -141,7 +111,15 @@ impl ImageDrawable for Sei<'_, BinaryColor> {
             raw_data
                 .into_pixels(&self.bounding_box())
                 .filter(|Pixel(_, colour)| {
-                    // Apply stacking mode logic
+                    // if self.inverted() {
+                    //     BinaryColor::Off
+                    // }
+
+                    let colour = if self.inverted() {
+                        &colour.invert()
+                    } else {
+                        colour
+                    };
                     match self.stacking_mode() {
                         StackingMode::Opaque => true,
                         StackingMode::WhiteTransparent => colour.is_on(),
@@ -149,16 +127,21 @@ impl ImageDrawable for Sei<'_, BinaryColor> {
                     }
                 })
                 .map(|Pixel(pos, colour)| {
-                    let colour = match self.stacking_mode() {
-                        StackingMode::Opaque => colour,
-                        StackingMode::WhiteTransparent | StackingMode::BlackTransparent => {
-                            if self.white_mode() == WhiteMode::Zeros {
-                                BinaryColor::On
-                            } else {
-                                BinaryColor::Off
-                            }
-                        }
+                    let colour = if self.inverted() {
+                        colour.invert()
+                    } else {
+                        colour
                     };
+                    // let colour = match self.stacking_mode() {
+                    //     StackingMode::Opaque => colour,
+                    //     StackingMode::WhiteTransparent | StackingMode::BlackTransparent => {
+                    //         if self.inverted() {
+                    //             BinaryColor::On
+                    //         } else {
+                    //             BinaryColor::Off
+                    //         }
+                    //     }
+                    // };
 
                     Pixel(pos, colour)
                 }),

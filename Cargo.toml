@@ -10,3 +10,4 @@ edition = "2024"
 [dependencies]
 bon = { version = "3.6", default-features = false }
 embedded-graphics = "0.8"
+heapless = "0.8.0"

@@ -8,7 +8,7 @@ pub struct SeiSettings {
     #[builder(default)]
     pub bit_depth: BitDepth,
     #[builder(default)]
-    pub white_mode: WhiteMode,
+    pub invert: bool,
     #[builder(default)]
     pub padding: Padding,
     #[builder(default)]
@@ -22,14 +22,18 @@ impl SeiSettings {
     /// Parse the settings from a byte
     pub fn parse(settings: u8) -> Result<Self, SeiError> {
         let bit_depth = settings & 0b11;
-        let white_mode = (settings >> 2) & 0b1;
-        let padding = (settings >> 3) & 0b1;
+        let invert = ((settings >> 2) & 0b1) == 1;
+        let padding = ((settings >> 3) & 0b1) == 0;
         let stacking_mode = (settings >> 4) & 0b11;
         let unused_bits = (settings >> 6) & 0b11;
 
+        if !padding {
+            return Err(SeiError::NoPadding);
+        }
+
         Ok(SeiSettings {
             bit_depth: BitDepth::parse(bit_depth)?,
-            white_mode: WhiteMode::parse(white_mode),
+            invert,
             stacking_mode: StackingMode::parse(stacking_mode)?,
             padding: Padding::parse(padding),
             unused_bits,
@@ -68,28 +72,6 @@ impl BitDepth {
     }
 }
 
-/// Whether for each pixel if all pixel bits are 0's or 1's should be treated as the white colour.
-///
-/// Zeros: All bits 0 => white. (E.g. in 2-bit mode, 00 is white and 11 is black)
-/// Ones: All bits 1 => white. (E.g. in 3-bit mode, 111 is white and 000 is black)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum WhiteMode {
-    #[default]
-    Zeros = 0,
-    Ones = 1,
-}
-
-impl WhiteMode {
-    pub(crate) const fn parse(value: u8) -> Self {
-        match value {
-            0 => WhiteMode::Zeros,
-            1 => WhiteMode::Ones,
-            // Only ever called from the parser with 0 or 1
-            _ => unreachable!(),
-        }
-    }
-}
-
 /// Whether or not each row of pixels should be padded to the next byte boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Padding {
@@ -99,12 +81,17 @@ pub enum Padding {
 }
 
 impl Padding {
-    pub(crate) const fn parse(value: u8) -> Self {
+    pub(crate) const fn parse(value: bool) -> Self {
         match value {
-            0 => Padding::Padding,
-            1 => Padding::NoPadding,
-            // Only ever called from the parser with 0 or 1
-            _ => unreachable!(),
+            true => Padding::Padding,
+            false => Padding::NoPadding,
+        }
+    }
+
+    pub const fn padding(&self) -> bool {
+        match self {
+            Padding::Padding => true,
+            Padding::NoPadding => false,
         }
     }
 }
@@ -134,14 +121,14 @@ impl StackingMode {
 
 #[test]
 fn test_sei_settings() {
-    let settings: u8 = 0b0010_1100;
+    let settings: u8 = 0b0010_0100;
     let parsed = SeiSettings::parse(settings).unwrap();
     assert_eq!(
         parsed,
         SeiSettings::builder()
             .bit_depth(BitDepth::OneBit)
-            .white_mode(WhiteMode::Ones)
-            .padding(Padding::NoPadding)
+            .invert(true)
+            .padding(Padding::Padding)
             .stacking_mode(StackingMode::BlackTransparent)
             .build()
     );

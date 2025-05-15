@@ -27,7 +27,12 @@ impl SeiHeader {
         8 / self.bit_depth()
     }
 
+    // Width of data based on the padding
     pub const fn data_width(&self) -> u32 {
-        (self.bit_depth() * self.width as u32).div_ceil(8) * self.pixels_per_byte()
+        if self.settings.padding.padding() {
+            (self.bit_depth() * self.width as u32).div_ceil(8) * self.pixels_per_byte()
+        } else {
+            self.width as u32
+        }
     }
 }
